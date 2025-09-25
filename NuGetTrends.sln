@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Data", "src\NuG
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NuGetTrends.Scheduler", "src\NuGetTrends.Scheduler\NuGetTrends.Scheduler.csproj", "{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NuGetTrends.Portal", "src\NuGetTrends.Portal\NuGetTrends.Portal.csproj", "{F145E738-D5A2-46E5-B48C-04D8C6F2A1C3}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AD05B453-E249-4C71-84C4-B30F527DF9DB}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
@@ -44,6 +46,10 @@ Global
 		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6E228CA-5E81-4B3C-82E3-5CF18BB0784D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F145E738-D5A2-46E5-B48C-04D8C6F2A1C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F145E738-D5A2-46E5-B48C-04D8C6F2A1C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F145E738-D5A2-46E5-B48C-04D8C6F2A1C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F145E738-D5A2-46E5-B48C-04D8C6F2A1C3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

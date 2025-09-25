@@ -1,0 +1,18 @@
+﻿@inject IUserInterfaceService UserInterfaceService
+
+@implements IDisposable
+
+<MudTooltip Duration="1000" Text="@ToolTip" Placement="Placement.Bottom">
+    <MudIconButton Icon="@Icon" Color="Color.Inherit" OnClick="@UserInterfaceService.ToggleDarkMode" />
+</MudTooltip>
+
+@code {
+
+    private string Icon => UserInterfaceService.IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Outlined.DarkMode;
+
+    private string ToolTip => UserInterfaceService.IsDarkMode ? "Switch to Light Theme" : "Switch to Dark Theme";
+
+    protected override void OnInitialized() => UserInterfaceService.UserInterfaceChanged += (sender, args) => StateHasChanged();
+
+    public void Dispose() => UserInterfaceService.UserInterfaceChanged -= (sender, args) => StateHasChanged();
+}

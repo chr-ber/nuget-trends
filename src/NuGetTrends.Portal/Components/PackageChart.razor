@@ -1,0 +1,348 @@
+﻿@using ApexCharts
+@using NuGetTrends.Portal.Models
+@using NuGetTrends.Portal.Themes
+@using Align = ApexCharts.Align
+@using ChartType = ApexCharts.ChartType
+@using Color = MudBlazor.Color
+@using Size = MudBlazor.Size
+
+@inject INugetTrendsWebService NugetTrendsWebService
+
+<div class="chart-container">
+    <MudGrid Justify="Justify.FlexStart">
+        <MudItem xs="12" md="9">
+            <MudStack StretchItems="StretchItems.All" Row="true">
+                <MudSelect T="TimeRange"
+                           Value="@_selectedTimeRange"
+                           ValueChanged="@OnTimeRangeChanged"
+                           ToStringFunc="@(x => x?.DisplayName)"
+                           Variant="Variant.Outlined"
+                           Label="Time Range"
+                           Class="time-range-select">
+                    @foreach (var option in TimeRange.All)
+                    {
+                        <MudSelectItem Value="@option">@option.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="Aggregation"
+                           Value="@_selectedAggregation"
+                           ValueChanged="@OnTimeRangeChanged"
+                           ToStringFunc="@(x => x?.DisplayName)"
+                           Variant="Variant.Outlined"
+                           Label="Aggregation"
+                           Class="aggregation-select">
+                    @foreach (var option in Aggregation.All)
+                    {
+                        <MudSelectItem Value="@option">@option.DisplayName</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudSelect T="ChartType"
+                           Value="@_selectedChartType"
+                           ValueChanged="@OnChartTypeChanged"
+                           Variant="Variant.Outlined"
+                           Label="Chart Type"
+                           Class="chart-type-select">
+                    @foreach (var chartType in Enum.GetValues<ChartType>())
+                    {
+                        <MudSelectItem Value="@chartType">@chartType</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudStack>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined" FullWidth="true">
+                <MudButton StartIcon="@Icons.Material.Filled.Share" IconColor="Color.Warning" FullWidth="true">Share</MudButton>
+                <MudButton StartIcon="@Icons.Material.Filled.Recycling" IconColor="Color.Warning" FullWidth="true">Clear</MudButton>
+            </MudButtonGroup>
+        </MudItem>
+    </MudGrid>
+    @if (IsLoading)
+    {
+        <div class="d-flex justify-center align-center" style="height: 400px;">
+            <div class="text-center">
+                <MudProgressCircular Size="@Size.Large" Indeterminate="true"/>
+                <MudText Typo="Typo.body1" Class="mt-4">Loading chart data...</MudText>
+            </div>
+        </div>
+    }
+    else if (HasError)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            <MudText>Failed to load chart data. Please try again.</MudText>
+            <MudButton StartIcon="Icons.Material.Filled.Refresh"
+                       OnClick="RefreshChartData"
+                       Variant="Variant.Text"
+                       Color="@Color.Primary"
+                       Class="mt-2">
+                Retry
+            </MudButton>
+        </MudAlert>
+    }
+    else if (!HasData)
+    {
+        <div class="d-flex justify-center align-center" style="height: 400px;">
+            <div class="text-center">
+                <MudIcon Icon="Icons.Material.Filled.ShowChart" Size="Size.Large" Color="Color.Secondary"/>
+                <MudText Typo="Typo.h6" Class="mt-4">No Data Available</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                    Select packages above to view download trends
+                </MudText>
+            </div>
+        </div>
+    }
+    else
+    {
+        <ApexChart TItem="ChartDataPoint"
+                   Options="_chartOptions"
+                   @ref="chart">
+
+            @foreach (var series in chartSeries)
+            {
+                <ApexPointSeries TItem="ChartDataPoint"
+                                 Items="@series.Data"
+                                 Name="@series.Name"
+                                 SeriesType="@GetSeriesType(_selectedChartType)"
+                                 XValue="@(e => e.Date.ToUnixTimeMilliseconds())"
+                                 YValue="@(e => (decimal)(e.Downloads ?? 0))"/>
+            }
+        </ApexChart>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<PackageSearchResult>? SelectedPackages { get; set; }
+    [Parameter] public EventCallback OnDataLoaded { get; set; }
+
+    private TimeRange _selectedTimeRange = TimeRange.Default;
+    private Aggregation _selectedAggregation = Aggregation.Default;
+    private ChartType _selectedChartType = ChartType.Area;
+
+    private ApexChartOptions<PackageChart.ChartDataPoint> _chartOptions = CreateTheme(ChartType.Pie);
+
+    private ApexChart<ChartDataPoint>? chart;
+    private List<ChartSeriesData> chartSeries = new();
+    private bool IsLoading = false;
+    private bool HasError = false;
+    private CancellationTokenSource? _cancellationTokenSource;
+
+    private bool HasData => chartSeries.Any(s => s.Data.Any());
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadChartData();
+    }
+
+    private async Task LoadChartData()
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource = new CancellationTokenSource();
+
+        var packages = SelectedPackages?.ToList() ?? [];
+
+        if (packages.Count == 0)
+        {
+            chartSeries.Clear();
+            HasError = false;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            IsLoading = true;
+            HasError = false;
+
+            var newSeries = new List<ChartSeriesData>();
+
+            foreach (var package in packages)
+            {
+                Console.WriteLine($"Downloading package {package.PackageId}");
+
+                if (string.IsNullOrEmpty(package.PackageId))
+                    continue;
+
+                try
+                {
+                    var downloadHistory = await NugetTrendsWebService.GetDownloadHistoryAsync(
+                        package.PackageId, _selectedTimeRange.MonthsBack, _cancellationTokenSource.Token);
+
+                    if (downloadHistory?.Downloads?.Any() == true)
+                    {
+                        var dataPoints = downloadHistory.Downloads
+                            .Select(d => new ChartDataPoint
+                            {
+                                Date = d.Week,
+                                Downloads = d.Count,
+                                PackageName = package.PackageId,
+                            })
+                            .OrderBy(d => d.Date)
+                            .ToList();
+
+                        newSeries.Add(new ChartSeriesData
+                        {
+                            Name = package.PackageId,
+                            Data = dataPoints,
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading data for {package.PackageId}: {ex.Message}");
+                }
+            }
+
+            chartSeries = newSeries;
+            await OnDataLoaded.InvokeAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading chart data: {ex.Message}");
+            HasError = true;
+        }
+        finally
+        {
+            IsLoading = false;
+
+            if (chart is not null)
+            {
+                await chart.UpdateSeriesAsync();
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task RefreshChartData()
+    {
+        await LoadChartData();
+    }
+
+    private async Task OnTimeRangeChanged(TimeRange timeRange)
+    {
+        _selectedTimeRange = timeRange;
+        await LoadChartData();
+    }
+
+    private void OnTimeRangeChanged(Aggregation aggregation)
+    {
+        _selectedAggregation = aggregation;
+    }
+
+    private async Task OnChartTypeChanged(ChartType chartType)
+    {
+        _selectedChartType = chartType;
+        _chartOptions = CreateTheme(chartType);
+        await chart!.UpdateOptionsAsync(true, true, true);
+    }
+
+    public void Dispose()
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+    }
+
+    public class ChartDataPoint
+    {
+        public DateTimeOffset Date { get; set; }
+        public long? Downloads { get; set; }
+        public string PackageName { get; set; } = "";
+    }
+
+    public class ChartSeriesData
+    {
+        public string Name { get; set; } = "";
+        public List<ChartDataPoint> Data { get; set; } = new();
+    }
+
+    public static ApexChartOptions<ChartDataPoint> CreateTheme(ChartType chartType = ChartType.Line)
+    {
+        return new ApexChartOptions<ChartDataPoint>
+        {
+            Theme = new() { Mode = Mode.Light, Palette = PaletteType.Palette1 },
+            Chart = new()
+            {
+                Type = chartType,
+                Height = 400,
+                FontFamily = "Roboto, Helvetica, Arial, sans-serif",
+                Toolbar = new() { Show = false },
+                Animations = new() { Enabled = true, Easing = Easing.Easeout, Speed = 800 },
+                Background = "0"
+            },
+            Stroke = new() { Width = new List<int> { 3 }, Curve = Curve.Smooth },
+            Grid = new() { Show = true, BorderColor = "#e0e0e0", StrokeDashArray = 3 },
+            Xaxis = new()
+            {
+                Type = XAxisType.Datetime,
+                Labels = new()
+                {
+                    DatetimeFormatter = new()
+                    {
+                        Year = "yyyy", Month = "MMM 'yy", Day = "dd MMM 'yy", Hour = "HH:mm"
+                    }
+                }
+            },
+            Yaxis = new List<YAxis>
+            {
+                new YAxis
+                {
+                    Labels = new() { Formatter = "function(value) { return value.toLocaleString(); }" }
+                }
+            },
+            Tooltip = new()
+            {
+                Enabled = true,
+                Shared = true,
+                Intersect = false,
+                X = new() { Format = "dd MMM yyyy" },
+                Y = new() { Formatter = "function(value) { return value.toLocaleString() + ' downloads'; }" }
+            },
+            Legend = new()
+            {
+                Show = true,
+                Position = LegendPosition.Top,
+                HorizontalAlign = Align.Center,
+                FontSize = "14px",
+                FontWeight = "500",
+            },
+            Colors = new List<string>
+            {
+                "#1976d2", "#dc004e", "#00c853", "#ff6d00",
+                "#6a1b9a", "#d32f2f", "#1565c0", "#2e7d32"
+            }
+        };
+    }
+
+    public static SeriesType GetSeriesType(ChartType chartType)
+    {
+        return chartType switch
+        {
+            // Direct 1:1 mappings
+            ChartType.Area => SeriesType.Area,
+            ChartType.Bar => SeriesType.Bar,
+            ChartType.Donut => SeriesType.Donut,
+            ChartType.Heatmap => SeriesType.Heatmap,
+            ChartType.Line => SeriesType.Line,
+            ChartType.Pie => SeriesType.Pie,
+            ChartType.PolarArea => SeriesType.PolarArea,
+            ChartType.Radar => SeriesType.Radar,
+            ChartType.RadialBar => SeriesType.RadialBar,
+            ChartType.Scatter => SeriesType.Scatter,
+            ChartType.Treemap => SeriesType.Treemap,
+            ChartType.RangeArea => SeriesType.RangeArea,
+
+            // ChartTypes that don't have direct SeriesType equivalents
+            // These use specialized components or different approaches
+            ChartType.Bubble => SeriesType.Scatter,     // Bubble uses Scatter with size
+            ChartType.Candlestick => SeriesType.Line,   // Uses ApexCandlestickSeries component
+            ChartType.RangeBar => SeriesType.Bar,       // Uses ApexRangeBarSeries component
+            ChartType.BoxPlot => SeriesType.Line,       // Uses ApexBoxPlotSeries component
+
+            // Default fallback
+            _ => SeriesType.Line
+        };
+    }
+}

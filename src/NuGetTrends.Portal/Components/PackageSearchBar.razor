@@ -1,0 +1,111 @@
+﻿@using MudBlazor
+
+@using NuGetTrends.Portal.Models
+
+@inject INugetTrendsWebService NugetTrendsWebService
+
+<MudAutocomplete T="PackageSearchResult"
+                 @ref="_autocomplete"
+                 Label="Discover Nuget Trends"
+                 Placeholder="Enter a nuget package name..."
+                 Variant="Variant.Outlined"
+                 SearchFunc="@SearchPackages"
+                 ToStringFunc="@(p => p?.PackageId)"
+                 ValueChanged="PackageSelected"
+                 Adornment="Adornment.Start"
+                 AdornmentIcon="@Icons.Material.Filled.Search"
+                 FullWidth="true"
+                 DebounceInterval="300"
+                 MaxItems="@MaxPackages"
+                 MinCharacters="1"
+                 Class="search-input"
+                 InputMode="InputMode.search"
+                 ResetValueOnEmptyText="true">
+    <ItemTemplate Context="package">
+        <div class="d-flex align-center">
+            @if (Uri.IsWellFormedUriString(package.IconUrl, UriKind.Absolute))
+            {
+                <MudAvatar Size="Size.Small" Class="mr-3">
+                    <MudImage Src="@package.IconUrl" Alt="@package.PackageId" />
+                </MudAvatar>
+                <MudText Align="Align.Center" Class="py-1 px-2" Style="height:32px;overflow:hidden">@package.PackageId</MudText>
+
+            }
+            else
+            {
+                <MudAvatar Size="Size.Small" Class="mr-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Inventory" />
+                </MudAvatar>
+                <MudText Align="Align.Center" Class="py-1 px-2" Style="height:32px;overflow:hidden">@package.PackageId</MudText>
+            }
+        </div>
+    </ItemTemplate>
+    <MoreItemsTemplate>
+        <MudText Align="Align.Center" Class="px-4 py-1">
+            Only the first 10 packages are shown...
+        </MudText>
+    </MoreItemsTemplate>
+    <NoItemsTemplate>
+        <MudText Align="Align.Center" Class="px-4 py-1">
+            No packages found
+        </MudText>
+    </NoItemsTemplate>
+    <ProgressIndicatorTemplate>
+        <div class="d-flex align-center px-4 py-2">
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            <MudText>Searching packages...</MudText>
+        </div>
+    </ProgressIndicatorTemplate>
+</MudAutocomplete>
+
+@code {
+    [Parameter] public EventCallback<PackageSearchResult> OnPackageSelected { get; set; }
+    [Parameter] public IEnumerable<PackageSearchResult>? SelectedPackages { get; set; }
+
+    private const int MaxPackages = 25;
+
+    private CancellationTokenSource? _cancellationTokenSource;
+    private MudAutocomplete<PackageSearchResult>? _autocomplete;
+
+    private async Task<IEnumerable<PackageSearchResult>> SearchPackages(string searchText, CancellationToken cancellationToken)
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(searchText) || searchText.Length < 2)
+            {
+                return Enumerable.Empty<PackageSearchResult>();
+            }
+
+            var packages = await NugetTrendsWebService.SearchPackagesAsync(searchText, _cancellationTokenSource.Token);
+
+            return packages
+                .Where(p => SelectedPackages?.Contains(p) == false)
+                .OrderByDescending(p => p.LatestDownloadCount ?? 0)
+                .ThenBy(p => p.PackageId)
+                .Take(MaxPackages);
+        }
+        catch (OperationCanceledException)
+        {
+            return Enumerable.Empty<PackageSearchResult>();
+        }
+    }
+
+    private async Task PackageSelected(PackageSearchResult? package)
+    {
+        if (package != null)
+        {
+            await OnPackageSelected.InvokeAsync(package);
+        }
+
+        await _autocomplete!.ClearAsync();
+    }
+
+    public void Dispose()
+    {
+        _cancellationTokenSource?.Cancel();
+        _cancellationTokenSource?.Dispose();
+    }
+}

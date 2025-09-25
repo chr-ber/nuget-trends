@@ -1,0 +1,48 @@
+﻿@using NuGetTrends.Portal.Themes
+@inherits LayoutComponentBase
+
+@inject IUserInterfaceService UserInterfaceService
+
+<MudRTLProvider RightToLeft="@UserInterfaceService.IsRTL">
+    <MudThemeProvider @ref="@_mudThemeProvider"
+                      Theme="SiteTheme.Theme"
+                      IsDarkMode="@UserInterfaceService.IsDarkMode"
+                      IsDarkModeChanged="@((dark) => UserInterfaceService.SetDarkMode(dark))"/>
+    <MudPopoverProvider/>
+    <MudSnackbarProvider/>
+    <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall"/>
+    <AppBar/>
+        @Body
+    <Footer/>
+</MudRTLProvider>
+
+@code{
+    private MudThemeProvider? _mudThemeProvider;
+
+    protected override void OnInitialized()
+    {
+        UserInterfaceService.UserInterfaceChanged += OnUserInterfaceChanged;
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var systemDarkMode = await _mudThemeProvider!.GetSystemDarkModeAsync();
+            await UserInterfaceService.InitializeUserSettingsAsync(systemDarkMode);
+            await _mudThemeProvider.WatchSystemDarkModeAsync(UserInterfaceService.SetDarkMode);
+
+            StateHasChanged();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    public void Dispose()
+    {
+        UserInterfaceService.UserInterfaceChanged -= OnUserInterfaceChanged;
+    }
+
+    private void OnUserInterfaceChanged(object? sender, EventArgs e) => StateHasChanged();
+}

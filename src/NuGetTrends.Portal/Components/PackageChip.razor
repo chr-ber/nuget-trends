@@ -1,0 +1,33 @@
+﻿@using NuGetTrends.Portal.Models
+<MudChip T="string"
+         Text="@GetDisplayText()"
+         OnClose="@HandleRemove"
+         CloseIcon="@Icons.Material.Filled.Close"
+         Icon="@Icons.Material.Filled.Visibility"
+         Size="Size.Large"
+         Color="@Color"
+         Variant="Variant.Filled"
+         Class="package-chip ma-1">
+    <ChildContent>
+        <MudText Typo="Typo.body2" Class="font-weight-medium">
+            @Package?.PackageId
+        </MudText>
+    </ChildContent>
+</MudChip>
+
+@code {
+    [Parameter] public PackageSearchResult? Package { get; set; }
+    [Parameter] public EventCallback OnRemove { get; set; }
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+
+    private string GetDisplayText()
+    {
+        if (Package == null) return "Unknown Package";
+        return $"{Package.PackageId} ({Package.LatestDownloadCount})";
+    }
+
+    private async Task HandleRemove()
+    {
+        await OnRemove.InvokeAsync();
+    }
+}

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Blazor-ApexCharts" />
+        <PackageReference Include="Blazored.LocalStorage" />
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="8.0.17"/>
+        <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="8.0.17" PrivateAssets="all"/>
+        <PackageReference Include="MudBlazor" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Include="wwwroot\images\chart_icon.png" />
+      <None Include="wwwroot\images\logo-icon-transparent.png" />
+      <None Include="wwwroot\images\logo-inverted-350.png" />
+      <None Include="wwwroot\images\logo-inverted-400.png" />
+      <None Include="wwwroot\images\logo-inverted.png" />
+      <None Include="wwwroot\images\logo.png" />
+    </ItemGroup>
+
+</Project>

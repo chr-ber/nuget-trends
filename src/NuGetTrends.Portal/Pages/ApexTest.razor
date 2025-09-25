@@ -1,0 +1,161 @@
+﻿@page "/chart-test"
+@using ApexCharts
+@using Align = ApexCharts.Align
+@using ChartType = ApexCharts.ChartType
+
+<PageTitle>Chart Test</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <h3>Chart Type Test</h3>
+
+            <div class="form-group mb-3">
+                <label for="chartTypeSelect">Select Chart Type:</label>
+                <select id="chartTypeSelect" class="form-select" @onchange="OnChartTypeChanged">
+                    <option value="@ChartType.Line">Line Chart</option>
+                    <option value="@ChartType.Bar">Bar Chart</option>
+                    <option value="@ChartType.Area">Area Chart</option>
+                    <option value="@ChartType.Pie">Pie Chart</option>
+                    <option value="@ChartType.Donut">Donut Chart</option>
+                </select>
+            </div>
+
+            <p>Current Chart Type: <strong>@_selectedChartType</strong></p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <ApexChart TItem="ChartDataPoint"
+                               Options="_chartOptions"
+                               @ref="chart">
+
+                        <ApexPointSeries TItem="ChartDataPoint"
+                                         Items="_chartData"
+                                         Name="Sample Data"
+                                         SeriesType="@GetSeriesType(_selectedChartType)"
+                                         XValue="@(e => e.Date)"
+                                         YValue="@(e => e.Value)" />
+                    </ApexChart>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ApexChart<ChartDataPoint>? chart;
+    private ChartType _selectedChartType = ChartType.Line;
+    private ApexChartOptions<ChartDataPoint> _chartOptions = new();
+    private List<ChartDataPoint> _chartData = new();
+
+    public class ChartDataPoint
+    {
+        public DateTime Date { get; set; }
+        public int Value { get; set; }
+    }
+
+    protected override void OnInitialized()
+    {
+        // Initialize sample data
+        _chartData = new List<ChartDataPoint>
+        {
+            new ChartDataPoint { Date = new DateTime(2024, 1, 1), Value = 100 },
+            new ChartDataPoint { Date = new DateTime(2024, 2, 1), Value = 150 },
+            new ChartDataPoint { Date = new DateTime(2024, 3, 1), Value = 120 },
+            new ChartDataPoint { Date = new DateTime(2024, 4, 1), Value = 200 }
+        };
+
+        // Initialize chart options
+        _chartOptions = CreateChartOptions(_selectedChartType);
+    }
+
+    private async Task OnChartTypeChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ChartType>(e.Value?.ToString(), out var chartType))
+        {
+            _selectedChartType = chartType;
+            _chartOptions = CreateChartOptions(chartType);
+            StateHasChanged();
+
+            // Small delay to ensure state change is processed
+            await Task.Delay(50);
+
+            if (chart != null)
+            {
+                await chart.UpdateOptionsAsync(true, true, true);
+            }
+        }
+    }
+
+    private ApexChartOptions<ChartDataPoint> CreateChartOptions(ChartType chartType)
+    {
+        return new ApexChartOptions<ChartDataPoint>
+        {
+            Chart = new Chart
+            {
+                Type = chartType,
+                Height = 400,
+                FontFamily = "Arial, sans-serif",
+                Toolbar = new Toolbar { Show = false },
+                Animations = new Animations { Enabled = true, Easing = Easing.Easeout, Speed = 800 }
+            },
+            Title = new Title
+            {
+                Text = $"Sample {chartType} Chart",
+                Align = Align.Center
+            },
+            Xaxis = new XAxis
+            {
+                Type = XAxisType.Datetime,
+                Title = new AxisTitle { Text = "Date" }
+            },
+            Yaxis = new List<YAxis>
+            {
+                new YAxis
+                {
+                    Title = new AxisTitle { Text = "Value" },
+                    Labels = new YAxisLabels
+                    {
+                        Formatter = "function(value) { return value.toLocaleString(); }"
+                    }
+                }
+            },
+            Colors = new List<string>
+            {
+                "#1976d2", "#dc004e", "#00c853", "#ff6d00"
+            },
+            Legend = new Legend
+            {
+                Show = true,
+                Position = LegendPosition.Top,
+                HorizontalAlign = Align.Center
+            },
+            Tooltip = new Tooltip
+            {
+                Enabled = true,
+                X = new TooltipX { Format = "MMM yyyy" },
+                Y = new TooltipY
+                {
+                    Formatter = "function(value) { return value.toLocaleString() + ' units'; }"
+                }
+            }
+        };
+    }
+
+    private SeriesType GetSeriesType(ChartType chartType)
+    {
+        return chartType switch
+        {
+            ChartType.Line => SeriesType.Line,
+            ChartType.Bar => SeriesType.Bar,
+            ChartType.Area => SeriesType.Area,
+            ChartType.Pie => SeriesType.Pie,
+            ChartType.Donut => SeriesType.Donut,
+            _ => SeriesType.Line
+        };
+    }
+}

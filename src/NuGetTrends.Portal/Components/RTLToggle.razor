@@ -1,0 +1,18 @@
+﻿@inject IUserInterfaceService UserInterfaceService
+
+@implements IDisposable
+
+<MudTooltip Duration="1000" Text="@ToolTip" Placement="Placement.Bottom">
+    <MudIconButton Icon="@Icon" Color="Color.Inherit" OnClick="@UserInterfaceService.ToggleRTL" />
+</MudTooltip>
+
+@code {
+
+    private string Icon => UserInterfaceService.IsRTL ? Icons.Material.Outlined.FormatTextdirectionLToR : Icons.Material.Filled.FormatTextdirectionRToL;
+
+    private string ToolTip => UserInterfaceService.IsRTL ? "Switch to Right to Left" : "Switch to Left to Right";
+
+    protected override void OnInitialized() => UserInterfaceService.UserInterfaceChanged += (sender, args) => StateHasChanged();
+
+    public void Dispose() => UserInterfaceService.UserInterfaceChanged -= (sender, args) => StateHasChanged();
+}

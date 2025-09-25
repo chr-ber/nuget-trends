@@ -1,0 +1,43 @@
+﻿@using NuGetTrends.Portal.Models
+
+<div class="package-tags-container">
+    @if (SelectedPackages?.Any() == true)
+    {
+        <MudChipSet T="Color" AllClosable="@true">
+            @foreach (var package in SelectedPackages)
+            {
+                <PackageChip Package="@package"
+                            OnRemove="@(() => HandlePackageRemove(package))"
+                            Color="@GetChipColor(package)" />
+            }
+        </MudChipSet>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<PackageSearchResult>? SelectedPackages { get; set; }
+    [Parameter] public EventCallback<PackageSearchResult> OnPackageRemove { get; set; }
+
+    private static readonly Color[] ChipColors =
+    {
+        Color.Primary,
+        Color.Secondary,
+        Color.Success,
+        Color.Info,
+        Color.Warning,
+        Color.Error
+    };
+
+    private Color GetChipColor(PackageSearchResult package)
+    {
+        if (SelectedPackages == null) return Color.Primary;
+
+        var index = SelectedPackages.ToList().IndexOf(package);
+        return ChipColors[index % ChipColors.Length];
+    }
+
+    private async Task HandlePackageRemove(PackageSearchResult package)
+    {
+        await OnPackageRemove.InvokeAsync(package);
+    }
+}

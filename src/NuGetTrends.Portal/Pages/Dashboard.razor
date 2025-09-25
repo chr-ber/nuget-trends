@@ -1,0 +1,86 @@
+﻿@page "/"
+@using NuGetTrends.Portal.Models
+
+@inject IUserInterfaceService UserInterfaceService
+
+<PageTitle>NuGet Trends</PageTitle>
+
+<div class="dashboard-container">
+    <MudPaper Square="true" Elevation="0" Class="pb-6" Style="background-color: var(--mud-palette-primary);">
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex flex-column align-center">
+            <MudLink Href="/">
+                <MudImage Src="images/logo-inverted-400.png"
+                          Alt="NuGet Trends"
+                          Style="max-width: 400px; height: auto;"
+                          Class="mb-4"/>
+            </MudLink>
+            <PackageSearchBar OnPackageSelected="HandlePackageSelected"
+                              SelectedPackages="@_selectedPackages"/>
+        </MudContainer>
+    </MudPaper>
+
+    <MudContainer MaxWidth="MaxWidth.Large">
+
+        <!-- Tags Section -->
+        <div class="tags-section">
+            <MudContainer MaxWidth="MaxWidth.Medium">
+                <PackageChipSet SelectedPackages="@_selectedPackages"
+                                OnPackageRemove="HandlePackageRemove"/>
+            </MudContainer>
+        </div>
+
+        @if (_selectedPackages?.Any() == false)
+        {
+            <HeroSection/>
+        }
+        else
+        {
+            <PackageChart SelectedPackages="@_selectedPackages"/>
+        }
+    </MudContainer>
+</div>
+
+@code {
+    private readonly List<PackageSearchResult> _selectedPackages = new();
+    private const int MaxPackages = 10;
+
+    private Task HandlePackageSelected(PackageSearchResult package)
+    {
+        if (_selectedPackages.Any(p => p.PackageId?.Equals(package.PackageId, StringComparison.OrdinalIgnoreCase) == true))
+        {
+            return Task.CompletedTask;
+        }
+
+        if (_selectedPackages.Count >= MaxPackages)
+        {
+            return Task.CompletedTask;
+        }
+
+        _selectedPackages.Add(package);
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task HandlePackageRemove(PackageSearchResult package)
+    {
+        if (_selectedPackages.Remove(package))
+        {
+            StateHasChanged();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void ClearAllPackages()
+    {
+        _selectedPackages.Clear();
+        StateHasChanged();
+    }
+
+    private void HandleChartDataLoaded()
+    {
+        // StateHasChanged();
+    }
+
+}
